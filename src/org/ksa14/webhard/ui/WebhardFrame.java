@@ -28,8 +28,8 @@ public class WebhardFrame extends JFrame{
 		
 		// Load Icon
 		URL urlIcon = getClass().getResource("/res/icon48.png");
-		Image image = Toolkit.getDefaultToolkit().getImage(urlIcon);
-		this.setIconImage(image);	
+		Image imgIcon = Toolkit.getDefaultToolkit().getImage(urlIcon);
+		this.setIconImage(imgIcon);
 		
 		// Make the process terminate when the window is closed 
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -56,7 +56,7 @@ public class WebhardFrame extends JFrame{
 	}
 	
 	public static WebhardFrame GetInstance() {
-		return (theInstance == null) ? theInstance=new WebhardFrame() : theInstance;
+		return (theInstance == null) ? theInstance = new WebhardFrame() : theInstance;
 	}
 	
 	public static void Open() {
