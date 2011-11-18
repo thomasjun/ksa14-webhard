@@ -12,6 +12,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.Vector;
 
 import javax.swing.ImageIcon;
@@ -25,7 +26,9 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 
+import org.ksa14.webhard.MsgBroadcaster;
 import org.ksa14.webhard.MsgListener;
+import org.ksa14.webhard.sftp.SftpList;
 
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 
@@ -75,11 +78,11 @@ public class FileList extends JTable implements MsgListener {
 		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {		
 			JLabel label = (JLabel)super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 			String text = value.toString();
-			String extension = (String)table.getModel().getValueAt(row, FileList.COLUMN_EXT);
+			String ext = (String)table.getModel().getValueAt(row, FileList.COLUMN_EXT);
 			
 			if (column == 0){
 				label.setText(text);
-				label.setIcon(FileInfo.GetIcon(extension));
+				label.setIcon(FileInfo.GetIcon(ext));
 			} else {
 				label.setIcon(null);
 				if (column == 1) label.setText(((Long)value < 0) ? "" : FileSize((Long)value));
@@ -136,6 +139,19 @@ public class FileList extends JTable implements MsgListener {
 		
 		public void mouseMoved(MouseEvent e) {}
 	}
+	
+	public class FileListListener extends MouseAdapter {
+		public void mouseClicked(MouseEvent e) {
+			if(e.getClickCount() == 2) {
+				// double clicked
+				JTable table = (JTable)e.getSource();
+				TableModel model = table.getModel();
+				int row = table.getSelectedRow();
+				if(model.getValueAt(row, COLUMN_EXT).equals("."))	// this is a folder
+					DirectoryTree.GetInstance().ChangeDirectory((String)model.getValueAt(row, COLUMN_FILENAME));
+			}
+		}
+	}
 
 	// comparator for sorting file list
 	private static class ModelComparator implements Comparator<Object> {
@@ -169,19 +185,6 @@ public class FileList extends JTable implements MsgListener {
 			return 0;
 		}
 	}
-	
-	public class FileListListener extends MouseAdapter {
-		public void mouseClicked(MouseEvent e) {
-			if(e.getClickCount() == 2) {
-				// double clicked
-				JTable table = (JTable)e.getSource();
-				TableModel model = table.getModel();
-				int row = table.getSelectedRow();
-				if(model.getValueAt(row, COLUMN_EXT).equals("."))	// this is a folder
-					DirectoryTree.GetInstance().ChangeDirectory((String)model.getValueAt(row, COLUMN_FILENAME));
-			}
-		}
-	}
 
 	/**
 	 * Initializes the table and its columns
@@ -201,6 +204,8 @@ public class FileList extends JTable implements MsgListener {
 		header.addMouseMotionListener(new ColumnHeaderMotionListener());
 		header.addMouseListener(new ColumnHeaderMouseListener());
 		addMouseListener(new FileListListener());
+		
+		MsgBroadcaster.AddListener(this);
 	}
 
 	public static FileList GetInstance() {
@@ -210,7 +215,7 @@ public class FileList extends JTable implements MsgListener {
 	public void UpdateList(final String path) {
 		new Thread() {
 			public void run() {
-//				SftpAdapter.GetFilesList(path);
+				SftpList.GetFilesList(path);
 			}
 		}.start();
 	}
@@ -219,11 +224,17 @@ public class FileList extends JTable implements MsgListener {
 		DefaultTableModel model = (DefaultTableModel)getModel();
 		model.setRowCount(0);
 
-		for(Object obj : list) {
-			LsEntry entry = (LsEntry)obj;
-			String fn = entry.getFilename();
-			int in = fn.lastIndexOf('.');
-			String extension = (in != -1) ? fn.substring(in + 1) : "";
+		Iterator<?> listI = list.iterator();
+		while (listI.hasNext()) {
+			LsEntry entry = (LsEntry)listI.next();
+			String fileName = entry.getFilename();
+			
+			// Skip hidden files
+			if (fileName.charAt(0) == '.')
+				continue;
+			
+			int indexExt = fileName.lastIndexOf('.');
+			String extension = (indexExt != -1) ? fileName.substring(indexExt + 1) : "";
 			Object row[] = {
 					entry.getFilename(),
 					(entry.getAttrs().isDir()) ? -1 : new Long(entry.getAttrs().getSize()),
@@ -235,12 +246,14 @@ public class FileList extends JTable implements MsgListener {
 
 		Sort(sortMode, sortAsc);
 		WebhardFrame.GetInstance().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+		
 		setEnabled(true);
 	}
 
 	private void Sort(int mode, boolean asc) {
-		Vector<?> mv = model.getDataVector();
-		Collections.sort(mv, ModelComparator.getInstance(mode, asc));
+		Vector<?> modelData = model.getDataVector();
+		Collections.sort(modelData, ModelComparator.getInstance(mode, asc));
+		
 		sortMode = mode;
 		sortAsc = asc;
 	}
@@ -248,19 +261,26 @@ public class FileList extends JTable implements MsgListener {
 	private static String FileSize(long size) {
 		double fSize = size;
 		String units[] = {"B", "KB", "MB", "GB"};
+		
 		for (int i=0; i<units.length; ++i) {
 			if (fSize < 1024.0) 
 				return String.format("%.1f %s", fSize, units[i]);
 			fSize /= 1024.0;
 		}
+		
 		return String.format("%.1f TB", fSize);
 	}
 
 	@Override
-	public void ReceiveMsg(int type, Object arg) {
+	public void ReceiveMsg(final int type, final Object arg) {
 		// TODO Auto-generated method stub
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
+				if (type == MsgListener.FILELIST_DONE)
+					GetInstance().UpdateListDone((Vector<?>)arg);
+				
+				if (type == MsgListener.FILELIST_FAIL)
+					GetInstance().UpdateListDone(new Vector<Object>());
 			}
 		});
 	}

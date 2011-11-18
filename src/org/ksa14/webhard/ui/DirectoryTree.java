@@ -49,13 +49,11 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 	 */
 	private DirectoryTree(DefaultMutableTreeNode tnode) {
 		super (tnode);
+		
 		top = tnode;
-
-		Object paths[] = {"/", ""};
 		top.add(new DefaultMutableTreeNode("..."));
 		lastNode = top;
 		lastPath = new TreePath(top);
-		UpdateNode(paths, top);
 
 		setScrollsOnExpand(true);
 		getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
@@ -63,10 +61,15 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 		addTreeWillExpandListener(this);
 		setRowHeight(20);
 		setCellRenderer(new MyTreeCellRenderer());
+		
+		MsgBroadcaster.AddListener(this);
+		
+		Object paths[] = {"/", ""};
+		UpdateTree(paths, top);
 	}
 
 	public static DirectoryTree GetInstance() {
-		if(theInstance == null) 
+		if (theInstance == null) 
 			theInstance = new DirectoryTree(new DefaultMutableTreeNode("KSA14 Webhard"));
 
 		return theInstance;	
@@ -74,28 +77,57 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 
 	public void valueChanged(TreeSelectionEvent e) {
 		DefaultMutableTreeNode node = (DefaultMutableTreeNode)getLastSelectedPathComponent();
-		if(node == lastNode)
+		if (node == lastNode)
 			return;
 		
 		lastPath = e.getPath();
 		lastNode = node;
 		WebhardFrame.GetInstance().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		UpdateNode(e.getPath().getPath(), node);
+		UpdateTree(e.getPath().getPath(), node);
 	}
 
 	public void treeWillExpand(TreeExpansionEvent e) {
 		DefaultMutableTreeNode node = (DefaultMutableTreeNode)e.getPath().getLastPathComponent();
-		if(node == top || node == lastNode)
+		if (node == top || node == lastNode)
 			return;
 		
 		lastPath = e.getPath();
 		lastNode = node;
 		WebhardFrame.GetInstance().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		UpdateNode(e.getPath().getPath(), node);
+		UpdateTree(e.getPath().getPath(), node);
 		setSelectionPath(e.getPath());
 	}
 
 	public void treeWillCollapse(TreeExpansionEvent e) {}
+	
+	public void UpdateTree(final Object paths[], final DefaultMutableTreeNode node) {
+		if (node == null)
+			return;
+		
+		setEnabled(false);
+		FileList.GetInstance().setEnabled(false);
+		
+		new Thread() { 
+			public void run() {
+				StringBuffer path = new StringBuffer();
+				for (int depth = 1; depth < paths.length; depth++)
+					path.append("/" + paths[depth]);
+
+				if (!node.isLeaf() && node.getChildAt(0).toString().equals("...")) {
+					node.remove(0);
+					SftpList.GetDirectoryList(path.toString());
+				} else {
+					MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "디렉토리 탐색 완료");
+					UpdateTreeDone(new Vector<Object>());
+				}
+
+				if (path.length() == 0)
+					FileList.GetInstance().UpdateList("/");
+				else
+					FileList.GetInstance().UpdateList(path.toString());
+			}
+		}.start();
+	}
 
 	public void UpdateTreeDone(Vector<?> dirlist) {
 		Iterator<?> dirIter = dirlist.iterator();
@@ -115,35 +147,7 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 		collapsePath(lastPath);
 		expandPath(lastPath);
 		
-		this.setEnabled(true);
-	}
-	
-	public void UpdateNode(final Object paths[], final DefaultMutableTreeNode node) {
-		if (node == null)
-			return;
-		
-		this.setEnabled(false);
-		FileList.GetInstance().setEnabled(false);
-		
-		new Thread() { 
-			public void run() {
-				StringBuffer path = new StringBuffer();
-				for (int depth = 1; depth < paths.length; ++depth)
-					path.append("/" + paths[depth]);
-
-				if (!node.isLeaf() && node.getChildAt(0).toString().equals("...")) {
-					node.remove(0);
-					SftpList.GetDirectoryList(path.toString());
-				} else {
-					MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_DONE, new Vector<Object>());
-				}
-
-				if (path.length() == 0)
-					FileList.GetInstance().UpdateList("/");
-				else
-					FileList.GetInstance().UpdateList(path.toString());
-			}
-		}.start();
+		setEnabled(true);
 	}
 	
 	public void ChangeDirectory(String directory) {
@@ -160,7 +164,7 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 		lastNode = childNode;
 		lastPath = lastPath.pathByAddingChild(lastNode);
 		WebhardFrame.GetInstance().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		UpdateNode(lastPath.getPath(), lastNode);
+		UpdateTree(lastPath.getPath(), lastNode);
 		setSelectionPath(lastPath);
 	}
 
@@ -170,7 +174,10 @@ public class DirectoryTree extends JTree implements TreeSelectionListener, TreeW
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				if (type == MsgListener.DIRTREE_DONE)
-					DirectoryTree.GetInstance().UpdateTreeDone((Vector<?>)arg);
+					GetInstance().UpdateTreeDone((Vector<?>)arg);
+				
+				if (type == MsgListener.DIRTREE_FAIL)
+					GetInstance().UpdateTreeDone(new Vector<Object>());
 			}
 		});
 	}

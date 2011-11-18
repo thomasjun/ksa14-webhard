@@ -28,10 +28,8 @@ public class WebhardToolBar extends JToolBar {
 		}
 
 		public void actionPerformed(ActionEvent e) {
-			if (e.getActionCommand().equals("exit")) {
-				if (JOptionPane.showOptionDialog(null, "웹하드를 종료합니다", "KSA14 Webhard Client", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null) == 0)
-					System.exit(0);
-			}
+			if (e.getActionCommand().equals("exit"))
+				WebhardFrame.Exit();
 		}
 	}
 	

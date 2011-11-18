@@ -16,13 +16,13 @@ public class SftpList {
 		// Check connection
 		if (!SftpAdapter.IsConnected()) {
 			MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "서버에 접속되어 있지 않습니다");
-			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, null);
+			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, "서버에 접속되어 있지 않습니다");
 			return;
 		}
 		ChannelSftp channel = SftpAdapter.getChannel("main");
 		if (!channel.isConnected()) {
 			MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "서버에 접속되어 있지 않습니다");
-			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, null);
+			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, "서버에 접속되어 있지 않습니다");
 			return;			
 		}
 		
@@ -44,6 +44,7 @@ public class SftpList {
 				}
 			} catch (SftpException e) {
 				MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "디렉토리 탐색에 실패했습니다");
+				MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, "디렉토리 탐색에 실패했습니다");
 				dirV.clear();
 			}
 		}
@@ -59,13 +60,13 @@ public class SftpList {
 		// Check connection
 		if (!SftpAdapter.IsConnected()) {
 			MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "서버에 접속되어 있지 않습니다");
-			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, null);
+			MsgBroadcaster.BroadcastMsg(MsgListener.FILELIST_FAIL, "서버에 접속되어 있지 않습니다");
 			return;
 		}
 		ChannelSftp channel = SftpAdapter.getChannel("main");
 		if (!channel.isConnected()) {
 			MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "서버에 접속되어 있지 않습니다");
-			MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_FAIL, null);
+			MsgBroadcaster.BroadcastMsg(MsgListener.FILELIST_FAIL, "서버에 접속되어 있지 않습니다");
 			return;			
 		}
 		
@@ -87,11 +88,12 @@ public class SftpList {
 				}
 			} catch (SftpException e) {
 				MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "파일 탐색에 실패했습니다");
+				MsgBroadcaster.BroadcastMsg(MsgListener.FILELIST_FAIL, "파일 탐색에 실패했습니다");
 				fileV.clear();
 			}
 		}
 
 		MsgBroadcaster.BroadcastMsg(MsgListener.STATUS_INFO, "파일 탐색 완료");
-		MsgBroadcaster.BroadcastMsg(MsgListener.DIRTREE_DONE, fileV);
+		MsgBroadcaster.BroadcastMsg(MsgListener.FILELIST_DONE, fileV);
 	}
 }

@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -56,16 +57,16 @@ public class WebhardPanel extends JPanel implements MsgListener {
 		add(this.statusBar, BorderLayout.PAGE_END);
 		
 		MsgBroadcaster.AddListener(this);
-		MsgBroadcaster.AddListener(dirTree);
-		MsgBroadcaster.AddListener(files);
 		MsgBroadcaster.AddListener(statusBar);
 	}
 
 	@Override
-	public void ReceiveMsg(int type, Object arg) {
+	public void ReceiveMsg(final int type, final Object arg) {
 		// TODO Auto-generated method stub
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
+				if ((type == MsgListener.DIRTREE_FAIL) || (type == MsgListener.FILELIST_FAIL))
+					JOptionPane.showMessageDialog(null, arg.toString(), "KSA14 Webhard", JOptionPane.ERROR_MESSAGE);
 			}
 		});
 	}
